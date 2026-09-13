@@ -1,0 +1,42 @@
+{
+  "name": "rentgf",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "cookies-next": "^6.1.1",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.45.0",
+    "next": "14.2.0",
+    "next-auth": "^4.24.15",
+    "prisma": "5.22.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-hook-form": "^7.88.0",
+    "react-hot-toast": "^2.6.0",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/date-fns": "^2.6.3",
+    "@types/node": "^20",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "autoprefixer": "^10.6.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5"
+  }
+}
