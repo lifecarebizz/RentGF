@@ -27,22 +27,24 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  customerProfile CustomerProfile?
-  companionProfile CompanionProfile?
-  favorites       Favorite[]
-  bookings        Booking[]
-  reviewsGiven    Review[] @relation("Reviewer")
-  reviewsReceived Review[] @relation("Reviewee")
-  notifications   Notification[]
+  customerProfile          CustomerProfile?
+  companionProfile         CompanionProfile?
+  favorites                Favorite[]
+  bookingsAsCustomer       Booking[]         @relation("CustomerBooking")
+  bookingsAsCompanion      Booking[]         @relation("CompanionBooking")
+  reviewsGiven             Review[]          @relation("Reviewer")
+  reviewsReceived          Review[]          @relation("Reviewee")
+  notifications            Notification[]
   conversationParticipants ConversationParticipant[]
-  messagesSent    Message[]
-  reportsSent     Report[]
-  blocksSent      Block[]
-  auditLogs       AuditLog[]
-  tempTokens      TempToken[]
-  earnings        Earnings[]
-  payouts         Payout[]
-  payments        Payment[]
+  messagesSent             Message[]
+  reportsSent              Report[]          @relation("ReportReporter")
+  reportsReceived          Report[]          @relation("ReportReported")
+  blocksSent               Block[]           @relation("Blocker")
+  blocksReceived           Block[]           @relation("Blocked")
+  auditLogs                AuditLog[]        @relation("AdminAudit")
+  tempTokens               TempToken[]
+  payments                 Payment[]
+  accessEntitlements       AccessEntitlement[]
 
   @@map("users")
 }
@@ -61,48 +63,46 @@ model CustomerProfile {
 }
 
 model CompanionProfile {
-  id               String          @id @default(cuid())
-  userId           String          @unique
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  city             String?
-  languages        String[]        @default([])
-  interests        String[]        @default([])
-  categories       String[]        @default([])
-  bio              String?         @db.Text
-  startingPrice    Float?
-  availabilityDays String[]        @default([])
-  availabilityTimes String[]        @default([])
-  onboardingStep   Int             @default(0)
-  onboardingComplete Boolean       @default(false)
-  isDiscoverable   Boolean         @default(false)
-  isPublic         Boolean         @default(false)
-  verificationStatus String        @default("NOT_SUBMITTED")
-  totalEarnings    Float           @default(0)
-  completedBookings Int            @default(0)
-  averageRating    Float?
-  reviewCount      Int             @default(0)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id                 String                @id @default(cuid())
+  userId             String                @unique
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city               String?
+  languages          String[]              @default([])
+  interests          String[]              @default([])
+  categories         String[]              @default([])
+  bio                String?               @db.Text
+  startingPrice      Float?
+  availabilityDays   String[]              @default([])
+  availabilityTimes  String[]              @default([])
+  onboardingStep     Int                   @default(0)
+  onboardingComplete Boolean               @default(false)
+  isDiscoverable     Boolean               @default(false)
+  isPublic           Boolean               @default(false)
+  verificationStatus String                @default("NOT_SUBMITTED")
+  totalEarnings      Float                 @default(0)
+  completedBookings  Int                   @default(0)
+  averageRating      Float?
+  reviewCount        Int                   @default(0)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
 
-  bookings        Booking[]
-  reviewsReceived Review[]
-  earnings        Earnings[]
-  payouts         Payout[]
-  favorites       Favorite[]
-  notifications   Notification[]
-  documents       VerificationDocument[]
+  bookings   Booking[]             @relation("CompanionBookingProfile")
+  earnings   Earnings[]
+  payouts    Payout[]
+  favorites  Favorite[]
+  documents  VerificationDocument[]
 
   @@map("companion_profiles")
 }
 
 model VerificationDocument {
-  id           String            @id @default(cuid())
+  id           String           @id @default(cuid())
   companionId  String
-  companion    CompanionProfile  @relation(fields: [companionId], references: [id], onDelete: Cascade)
+  companion    CompanionProfile @relation(fields: [companionId], references: [id], onDelete: Cascade)
   documentType String
   documentUrl  String
-  isVerified   Boolean           @default(false)
-  createdAt    DateTime          @default(now())
+  isVerified   Boolean          @default(false)
+  createdAt    DateTime         @default(now())
 
   @@map("verification_documents")
 }
@@ -142,68 +142,69 @@ model Interest {
 }
 
 model Favorite {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   customerId  String
   companionId String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime         @default(now())
 
-  customer   User             @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  companion  CompanionProfile @relation(fields: [companionId], references: [id], onDelete: Cascade)
+  customer  User             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  companion CompanionProfile @relation(fields: [companionId], references: [id], onDelete: Cascade)
 
   @@unique([customerId, companionId])
   @@map("favorites")
 }
 
 model Booking {
-  id               String          @id @default(cuid())
-  customerId       String
-  companionId      String
-  status           String          @default("PENDING")
-  bookingDate      DateTime
-  startTime        DateTime
-  endTime          DateTime
-  durationMinutes  Int
-  activityType     String?
-  message          String?         @db.Text
-  price            Float
-  discountAmount   Float           @default(0)
-  finalPrice       Float
-  currency         String          @default("INR")
-  cancelledBy      String?
-  cancellationReason String?       @db.Text
-  cancelledAt      DateTime?
-  completedAt      DateTime?
-  paymentId        String?
-  paymentStatus    String?         @default("PENDING")
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id                 String    @id @default(cuid())
+  customerId         String
+  companionId        String
+  status             String    @default("PENDING")
+  bookingDate        DateTime
+  startTime          DateTime
+  endTime            DateTime
+  durationMinutes    Int
+  activityType       String?
+  message            String?   @db.Text
+  price              Float
+  discountAmount     Float     @default(0)
+  finalPrice         Float
+  currency           String    @default("INR")
+  cancelledBy        String?
+  cancellationReason String?   @db.Text
+  cancelledAt        DateTime?
+  completedAt        DateTime?
+  paymentId          String?
+  paymentStatus      String?   @default("PENDING")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  customer   User             @relation("CustomerBooking", fields: [customerId], references: [id])
-  companion  User             @relation("CompanionBooking", fields: [companionId], references: [id])
-  reviews    Review[]
+  customer      User              @relation("CustomerBooking", fields: [customerId], references: [id])
+  companion     User              @relation("CompanionBooking", fields: [companionId], references: [id])
+  reviews       Review[]
   notifications Notification[]
+  earnings      Earnings[]
+  payments      Payment[]
 
-  @@unique([customerId, companionId, bookingDate, startTime])
   @@map("bookings")
 }
 
 model Payment {
-  id             String   @id @default(cuid())
-  orderId        String   @unique
-  paymentId      String?  @unique
+  id             String    @id @default(cuid())
+  orderId        String    @unique
+  paymentId      String?   @unique
   userId         String
   bookingId      String?
   amount         Float
-  discountAmount Float    @default(0)
+  discountAmount Float     @default(0)
   finalAmount    Float
-  currency       String   @default("INR")
-  discountId     String?
-  status         String   @default("PENDING")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  currency       String    @default("INR")
+  status         String    @default("PENDING")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  user    User   @relation(fields: [userId], references: [id])
-  booking Booking? @relation(fields: [bookingId], references: [id])
+  user              User                @relation(fields: [userId], references: [id])
+  booking           Booking?            @relation(fields: [bookingId], references: [id])
+  accessEntitlement AccessEntitlement?
 
   @@map("payments")
 }
@@ -211,26 +212,28 @@ model Payment {
 model AccessEntitlement {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  paymentId String
+  paymentId String   @unique
   grantedAt DateTime @default(now())
   isActive  Boolean  @default(true)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id])
 
   @@map("access_entitlements")
 }
 
 model Discount {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  type        String
-  value       Float
-  startDate   DateTime
-  endDate     DateTime
-  isActive    Boolean  @default(true)
+  id             String   @id @default(cuid())
+  code           String   @unique
+  type           String
+  value          Float
+  startDate      DateTime
+  endDate        DateTime
+  isActive       Boolean  @default(true)
   marketingLabel String?
-  usedCount   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  usedCount      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@map("discounts")
 }
@@ -246,42 +249,41 @@ model PlatformSetting {
 }
 
 model Earnings {
-  id                 String             @id @default(cuid())
+  id                 String           @id @default(cuid())
   companionId        String
-  companion          CompanionProfile   @relation(fields: [companionId], references: [id], onDelete: Cascade)
-  bookingId          String
-  booking            Booking            @relation(fields: [bookingId], references: [id])
+  companion          CompanionProfile @relation(fields: [companionId], references: [id], onDelete: Cascade)
+  bookingId          String           @unique
+  booking            Booking          @relation(fields: [bookingId], references: [id])
   bookingAmount      Float
   platformCommission Float
   companionEarnings  Float
-  payoutStatus       String             @default("PENDING")
-  createdAt          DateTime           @default(now())
+  payoutStatus       String           @default("PENDING")
+  createdAt          DateTime         @default(now())
 
-  @@unique([bookingId])
   @@map("earnings")
 }
 
 model Payout {
-  id              String            @id @default(cuid())
+  id              String           @id @default(cuid())
   companionId     String
-  companion       CompanionProfile  @relation(fields: [companionId], references: [id], onDelete: Cascade)
+  companion       CompanionProfile @relation(fields: [companionId], references: [id], onDelete: Cascade)
   amount          Float
-  payoutStatus    String            @default("PENDING")
+  payoutStatus    String           @default("PENDING")
   payoutReference String?
   requestedDate   DateTime
   processedDate   DateTime?
-  adminNotes      String?           @db.Text
-  createdAt       DateTime          @default(now())
+  adminNotes      String?          @db.Text
+  createdAt       DateTime         @default(now())
 
   @@map("payouts")
 }
 
 model Conversation {
-  id         String              @id @default(cuid())
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
+  id           String                    @id @default(cuid())
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
   participants ConversationParticipant[]
-  messages   Message[]
+  messages     Message[]
 
   @@map("conversations")
 }
@@ -302,14 +304,14 @@ model ConversationParticipant {
 }
 
 model Message {
-  id            String      @id @default(cuid())
+  id             String       @id @default(cuid())
   conversationId String
-  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderId      String
-  sender        User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  content       String      @db.Text
-  isRead        Boolean     @default(false)
-  createdAt     DateTime    @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String       @db.Text
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
 
   @@map("messages")
 }
@@ -332,17 +334,17 @@ model Review {
 }
 
 model Report {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   reporterId     String
-  reporter       User     @relation("ReportReporter", fields: [reporterId], references: [id])
+  reporter       User      @relation("ReportReporter", fields: [reporterId], references: [id])
   reportedUserId String
-  reportedUser   User     @relation("ReportReported", fields: [reportedUserId], references: [id])
+  reportedUser   User      @relation("ReportReported", fields: [reportedUserId], references: [id])
   category       String
-  description    String?  @db.Text
-  status         String   @default("OPEN")
-  adminNotes     String?  @db.Text
+  description    String?   @db.Text
+  status         String    @default("OPEN")
+  adminNotes     String?   @db.Text
   resolvedAt     DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   @@map("reports")
 }
@@ -372,17 +374,19 @@ model Notification {
   relatedType String?
   createdAt   DateTime @default(now())
 
+  booking Booking? @relation(fields: [relatedId], references: [id])
+
   @@map("notifications")
 }
 
 model FAQ {
-  id          String   @id @default(cuid())
-  question    String   @db.Text
-  answer      String   @db.Text
-  category    String?
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  question  String   @db.Text
+  answer    String   @db.Text
+  category  String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
 
   @@map("faqs")
 }
