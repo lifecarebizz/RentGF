@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma-client";
 import { verifyRazorpaySignature } from "@/lib/services/razorpay-service";
-import { sendBookingConfirmationEmail } from "@/lib/services/email-service";
+import {
+  sendBookingConfirmationEmail,
+  sendNewBookingAlertEmail,
+} from "@/lib/services/email-service";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "rentgf-secret-key-change-in-production-min-32-chars";
-const PLATFORM_COMMISSION = 0.2; // 20%
+const PLATFORM_COMMISSION = 0.2;
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,24 +62,52 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const customer = await prisma.user.findUnique({ where: { id: payload.id } });
-    const companionUser = await prisma.user.findUnique({ where: { id: booking.companionId } });
-    if (customer?.email && companionUser) {
-      try {
-        await sendBookingConfirmationEmail(customer.email, {
-          companionName: companionUser.displayName,
-          date: new Date(booking.bookingDate).toLocaleDateString("en-IN"),
-          duration: `${booking.durationMinutes} minutes`,
-          amount: booking.finalPrice.toString(),
-          bookingId: booking.id,
-        });
-      } catch {
-        // Email failure should not break payment verification
-      }
-    }
+    const [customer, companionUser] = await Promise.all([
+      prisma.user.findUnique({ where: { id: payload.id } }),
+      prisma.user.findUnique({ where: { id: booking.companionId } }),
+    ]);
+
+    const dateStr = new Date(booking.bookingDate).toLocaleDateString("en-IN", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    });
+    const timeStr = new Date(booking.startTime).toLocaleTimeString("en-IN", {
+      hour: "2-digit", minute: "2-digit",
+    });
+
+    const bookingDetails = {
+      companionName: companionUser?.displayName || "Companion",
+      customerName: customer?.displayName || "Customer",
+      date: dateStr,
+      time: timeStr,
+      duration: `${booking.durationMinutes} minutes`,
+      activityType: booking.activityType || undefined,
+      amount: booking.finalPrice.toLocaleString("en-IN"),
+      bookingId: booking.id,
+      dashboardUrl: `${APP_URL}/customer/dashboard`,
+    };
+
+    // Send emails in parallel — email failure must never break payment
+    await Promise.allSettled([
+      customer?.email
+        ? sendBookingConfirmationEmail(customer.email, customer.displayName, bookingDetails)
+        : Promise.resolve(),
+      companionUser?.email
+        ? sendNewBookingAlertEmail(companionUser.email, companionUser.displayName, {
+            ...bookingDetails,
+            dashboardUrl: `${APP_URL}/companion/dashboard`,
+          })
+        : Promise.resolve(),
+    ]);
 
     await prisma.notification.create({
-      data: { userId: booking.companionId, type: "BOOKING_CONFIRMED", title: "Booking Confirmed", message: "Payment received. Booking is confirmed.", relatedId: bookingId, relatedType: "BOOKING" },
+      data: {
+        userId: booking.companionId,
+        type: "BOOKING_CONFIRMED",
+        title: "Booking Confirmed",
+        message: `New booking from ${customer?.displayName || "a customer"} on ${dateStr}.`,
+        relatedId: bookingId,
+        relatedType: "BOOKING",
+      },
     });
 
     return NextResponse.json({ success: true });
