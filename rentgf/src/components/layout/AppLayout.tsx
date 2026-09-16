@@ -58,21 +58,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (isAuthPage) return <>{children}</>;
 
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname?.startsWith(href);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
+      {/* Top Navbar */}
       <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Logo size="md" />
 
+            {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map((item) => (
-                <Link key={item.href} href={item.href} className={cn(
-                  "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                  pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href))
-                    ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-100"
-                )}>{item.label}</Link>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    isActive(item.href)
+                      ? "bg-indigo-50 text-indigo-700"
+                      : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  {item.label}
+                </Link>
               ))}
             </nav>
 
@@ -83,7 +94,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <Bell className="w-5 h-5" />
                     {unread > 0 && (
                       <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                        {unread}
+                        {unread > 9 ? "9+" : unread}
                       </span>
                     )}
                   </Link>
@@ -92,9 +103,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       {user.displayName?.[0]?.toUpperCase() || "U"}
                     </div>
                   </Link>
-                  <button onClick={handleLogout} className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900">
+                  <button
+                    onClick={handleLogout}
+                    className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900"
+                  >
                     Logout
                   </button>
+                  {/* Hamburger only for mobile (sidebar drawer) */}
                   <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 text-gray-600">
                     {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                   </button>
@@ -112,7 +127,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Mobile sidebar */}
+      {/* Mobile sidebar drawer */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 md:hidden" onClick={() => setSidebarOpen(false)}>
           <div className="absolute inset-0 bg-black/50" />
@@ -123,21 +138,72 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <nav className="flex flex-col gap-1">
               {navItems.map((item) => (
-                <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}
-                  className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
-                    pathname === item.href ? "bg-indigo-50 text-indigo-700" : "text-gray-600")}>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                    isActive(item.href) ? "bg-indigo-50 text-indigo-700" : "text-gray-600"
+                  )}
+                >
                   <item.icon className="w-4 h-4" />{item.label}
                 </Link>
               ))}
+              <hr className="my-3" />
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full text-left"
+              >
+                Logout
+              </button>
             </nav>
           </div>
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
+      {/* Main content — extra bottom padding on mobile for bottom nav */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-6">
+        {children}
+      </main>
 
-      {/* Footer */}
-      <footer className="border-t bg-white mt-12">
+      {/* Mobile Bottom Navigation Bar */}
+      {user && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t flex items-center justify-around h-16 px-2 safe-area-inset-bottom">
+          {navItems.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex flex-col items-center gap-0.5 flex-1 py-2"
+              >
+                <item.icon
+                  className={cn("w-5 h-5 transition-colors", active ? "text-indigo-600" : "text-gray-400")}
+                />
+                <span className={cn("text-xs transition-colors", active ? "text-indigo-600 font-medium" : "text-gray-400")}>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+          {/* Notifications icon in bottom nav */}
+          <Link href="/notifications" className="flex flex-col items-center gap-0.5 flex-1 py-2 relative">
+            <Bell className={cn("w-5 h-5 transition-colors", isActive("/notifications") ? "text-indigo-600" : "text-gray-400")} />
+            {unread > 0 && (
+              <span className="absolute top-1.5 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center leading-none">
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
+            <span className={cn("text-xs", isActive("/notifications") ? "text-indigo-600 font-medium" : "text-gray-400")}>
+              Alerts
+            </span>
+          </Link>
+        </nav>
+      )}
+
+      {/* Footer (desktop only) */}
+      <footer className="border-t bg-white mt-12 hidden md:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
