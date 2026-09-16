@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma-client";
+import { razorpay } from "@/lib/services/razorpay-service";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -9,15 +10,15 @@ export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const token = authHeader.substring(7);
-    const payload = jwt.verify(token, JWT_SECRET) as any;
+    const payload = jwt.verify(authHeader.substring(7), JWT_SECRET) as { id: string; email: string; role: string };
 
-    const { companionId, bookingDate, startTime, durationMinutes, activityType, message, discountCode } = await req.json();
+    const { companionId, bookingDate, startTime, durationMinutes, activityType, message } = await req.json();
 
-    const companion = await prisma.companionProfile.findUnique({
-      where: { userId: companionId },
-    });
+    if (!companionId || !bookingDate || !startTime || !durationMinutes) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
 
+    const companion = await prisma.companionProfile.findUnique({ where: { userId: companionId } });
     if (!companion || !companion.isDiscoverable || companion.verificationStatus !== "APPROVED") {
       return NextResponse.json({ error: "Companion not available" }, { status: 400 });
     }
@@ -36,20 +37,27 @@ export async function POST(req: NextRequest) {
         status: { notIn: ["CANCELLED", "COMPLETED", "REFUNDED", "REJECTED"] },
         OR: [
           { startTime: { lt: end }, endTime: { gt: start } },
-          { startTime: { gte: start }, endTime: { lte: end } },
         ],
       },
     });
-
     if (existing) {
       return NextResponse.json({ error: "Companion already booked during this time" }, { status: 409 });
     }
 
-    const accessFee = 499;
     const price = companion.startingPrice || 0;
-    const total = price + accessFee;
+    const durationHours = durationMinutes / 60;
+    const total = Math.round(price * durationHours);
+    const totalPaise = total * 100;
 
-    const orderId = `ORD-${crypto.randomBytes(8).toString("hex")}`;
+    const internalOrderId = `ORD-${crypto.randomBytes(8).toString("hex")}`;
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: totalPaise,
+      currency: "INR",
+      receipt: internalOrderId,
+      notes: { companionId, customerId: payload.id },
+    });
+
     const booking = await prisma.booking.create({
       data: {
         customerId: payload.id,
@@ -58,26 +66,36 @@ export async function POST(req: NextRequest) {
         startTime: start,
         endTime: end,
         durationMinutes,
-        activityType,
-        message,
+        activityType: activityType || null,
+        message: message || null,
         price: total,
         discountAmount: 0,
         finalPrice: total,
-        status: "CONFIRMED",
+        status: "PENDING",
         paymentStatus: "PENDING",
       },
     });
 
     await prisma.payment.create({
-      data: { orderId, userId: payload.id, bookingId: booking.id, amount: total, finalAmount: total, paymentMethod: "PLATFORM", status: "PENDING" },
+      data: {
+        orderId: razorpayOrder.id,
+        userId: payload.id,
+        bookingId: booking.id,
+        amount: total,
+        finalAmount: total,
+        status: "PENDING",
+      },
     });
 
-    await prisma.notification.create({
-      data: { userId: companionId, type: "BOOKING_REQUEST", title: "New Booking", message: "You have a new booking request", relatedId: booking.id, relatedType: "BOOKING" },
+    return NextResponse.json({
+      booking,
+      razorpayOrderId: razorpayOrder.id,
+      amount: totalPaise,
+      currency: "INR",
+      keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
     });
-
-    return NextResponse.json({ booking, orderId, total });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Booking failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
