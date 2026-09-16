@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "use-client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  User, Heart, Calendar, MessageSquare, Bell, Settings,
-  ChevronRight, Search, Loader2, Star, ShoppingBag,
+  Heart, Calendar, MessageSquare, Bell, Settings,
+  ChevronRight, Search, Loader2, ShoppingBag,
 } from "lucide-react";
 
 interface Stats {
@@ -80,7 +79,7 @@ export default function CustomerDashboardPage() {
         </Link>
       </div>
 
-      {/* Stats */}
+      {/* Stats - clickable cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {statCards.map((s) => (
           <Link key={s.label} href={s.href} className="bg-white rounded-xl border p-5 hover:shadow-sm transition-shadow">
