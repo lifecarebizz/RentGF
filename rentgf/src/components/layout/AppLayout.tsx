@@ -6,7 +6,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/common/Logo";
 import {
-  Home, Search, Heart, Calendar, MessageSquare, Bell, Menu, X,
+  Home, Search, Heart, Calendar, MessageSquare, Bell, Menu, X, FileText,
 } from "lucide-react";
 
 const navItems = [
@@ -15,6 +15,17 @@ const navItems = [
   { href: "/favorites", icon: Heart, label: "Favorites" },
   { href: "/bookings", icon: Calendar, label: "Bookings" },
   { href: "/messages", icon: MessageSquare, label: "Messages" },
+];
+
+const legalLinks = [
+  { href: "/legal/privacy", label: "Privacy Policy" },
+  { href: "/legal/terms", label: "Terms of Service" },
+  { href: "/legal/safety", label: "Safety Guidelines" },
+  { href: "/legal/community", label: "Community Guidelines" },
+  { href: "/legal/refund", label: "Refund Policy" },
+  { href: "/legal/cancellation", label: "Cancellation Policy" },
+  { href: "/legal/18plus", label: "18+ Policy" },
+  { href: "/legal/contact", label: "Contact Us" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -62,7 +73,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Top Navbar */}
       <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -109,7 +120,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   >
                     Logout
                   </button>
-                  {/* Hamburger only for mobile (sidebar drawer) */}
                   <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 text-gray-600">
                     {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                   </button>
@@ -120,6 +130,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <Link href="/register" className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
                     Sign Up
                   </Link>
+                  {/* Hamburger for guests on mobile too */}
+                  <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 text-gray-600">
+                    {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                  </button>
                 </>
               )}
             </div>
@@ -131,12 +145,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 md:hidden" onClick={() => setSidebarOpen(false)}>
           <div className="absolute inset-0 bg-black/50" />
-          <div className="absolute left-0 top-0 bottom-0 w-64 bg-white p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
+          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
               <Logo size="sm" />
               <button onClick={() => setSidebarOpen(false)}><X className="w-5 h-5" /></button>
             </div>
-            <nav className="flex flex-col gap-1">
+
+            <div className="p-4 flex flex-col gap-1">
+              {/* Main nav */}
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -150,44 +166,57 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <item.icon className="w-4 h-4" />{item.label}
                 </Link>
               ))}
+
               <hr className="my-3" />
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full text-left"
-              >
-                Logout
-              </button>
-            </nav>
+
+              {/* Legal links */}
+              <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Legal & Support</p>
+              {legalLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                >
+                  <FileText className="w-4 h-4 shrink-0" />{link.label}
+                </Link>
+              ))}
+
+              {user && (
+                <>
+                  <hr className="my-3" />
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full text-left"
+                  >
+                    Logout
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Main content — extra bottom padding on mobile for bottom nav */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-6">
+      {/* Main content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-6">
         {children}
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
       {user && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t flex items-center justify-around h-16 px-2 safe-area-inset-bottom">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t flex items-center justify-around h-16 px-2">
           {navItems.map((item) => {
             const active = isActive(item.href);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex flex-col items-center gap-0.5 flex-1 py-2"
-              >
-                <item.icon
-                  className={cn("w-5 h-5 transition-colors", active ? "text-indigo-600" : "text-gray-400")}
-                />
+              <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 flex-1 py-2">
+                <item.icon className={cn("w-5 h-5 transition-colors", active ? "text-indigo-600" : "text-gray-400")} />
                 <span className={cn("text-xs transition-colors", active ? "text-indigo-600 font-medium" : "text-gray-400")}>
                   {item.label}
                 </span>
               </Link>
             );
           })}
-          {/* Notifications icon in bottom nav */}
           <Link href="/notifications" className="flex flex-col items-center gap-0.5 flex-1 py-2 relative">
             <Bell className={cn("w-5 h-5 transition-colors", isActive("/notifications") ? "text-indigo-600" : "text-gray-400")} />
             {unread > 0 && (
@@ -202,42 +231,50 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
       )}
 
-      {/* Footer (desktop only) */}
-      <footer className="border-t bg-white mt-12 hidden md:block">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div>
-              <Logo size="md" className="mb-4" />
-              <p className="text-sm text-gray-500">18+ companionship marketplace. Strictly non-sexual social activities.</p>
+      {/* Footer — shown on all screen sizes */}
+      <footer className="border-t bg-white mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="col-span-2 sm:col-span-2 lg:col-span-1">
+              <Logo size="md" className="mb-3" />
+              <p className="text-sm text-gray-500 leading-relaxed">
+                18+ companionship marketplace. Strictly non-sexual social activities only.
+              </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Platform</h4>
+              <h4 className="font-semibold text-gray-800 mb-4">Platform</h4>
               <div className="space-y-2 text-sm text-gray-500">
-                <Link href="/discover" className="block hover:text-gray-700">Discover</Link>
-                <Link href="/cities" className="block hover:text-gray-700">Cities</Link>
-                <Link href="/categories" className="block hover:text-gray-700">Categories</Link>
+                <Link href="/discover" className="block hover:text-indigo-600 transition-colors">Discover</Link>
+                <Link href="/cities" className="block hover:text-indigo-600 transition-colors">Cities</Link>
+                <Link href="/categories" className="block hover:text-indigo-600 transition-colors">Categories</Link>
+                <Link href="/register" className="block hover:text-indigo-600 transition-colors">Become a Companion</Link>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
+              <h4 className="font-semibold text-gray-800 mb-4">Legal</h4>
               <div className="space-y-2 text-sm text-gray-500">
-                <Link href="/legal/terms" className="block hover:text-gray-700">Terms of Service</Link>
-                <Link href="/legal/privacy" className="block hover:text-gray-700">Privacy Policy</Link>
-                <Link href="/legal/safety" className="block hover:text-gray-700">Safety Guidelines</Link>
-                <Link href="/legal/18plus" className="block hover:text-gray-700">18+ Policy</Link>
+                <Link href="/legal/privacy" className="block hover:text-indigo-600 transition-colors">Privacy Policy</Link>
+                <Link href="/legal/terms" className="block hover:text-indigo-600 transition-colors">Terms of Service</Link>
+                <Link href="/legal/safety" className="block hover:text-indigo-600 transition-colors">Safety Guidelines</Link>
+                <Link href="/legal/18plus" className="block hover:text-indigo-600 transition-colors">18+ Policy</Link>
+                <Link href="/legal/non-sexual" className="block hover:text-indigo-600 transition-colors">Non-Sexual Policy</Link>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Support</h4>
+              <h4 className="font-semibold text-gray-800 mb-4">Support</h4>
               <div className="space-y-2 text-sm text-gray-500">
-                <Link href="/legal/contact" className="block hover:text-gray-700">Contact Us</Link>
-                <Link href="/legal/community" className="block hover:text-gray-700">Community Guidelines</Link>
-                <Link href="/legal/refund" className="block hover:text-gray-700">Refund Policy</Link>
+                <Link href="/legal/contact" className="block hover:text-indigo-600 transition-colors">Contact Us</Link>
+                <Link href="/legal/community" className="block hover:text-indigo-600 transition-colors">Community Guidelines</Link>
+                <Link href="/legal/refund" className="block hover:text-indigo-600 transition-colors">Refund Policy</Link>
+                <Link href="/legal/cancellation" className="block hover:text-indigo-600 transition-colors">Cancellation Policy</Link>
               </div>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t text-sm text-gray-400 text-center">
-            &copy; {new Date().getFullYear()} RentGF. All rights reserved. 18+ Only. Non-sexual companionship.
+          <div className="mt-8 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-400">
+            <span>&copy; {new Date().getFullYear()} RentGF. All rights reserved.</span>
+            <span className="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-3 py-1 rounded-full">
+              18+ Only &middot; Non-Sexual Companionship
+            </span>
           </div>
         </div>
       </footer>
