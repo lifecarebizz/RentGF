@@ -6,15 +6,22 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/common/Logo";
 import {
-  Home, Search, Heart, Calendar, MessageSquare, Bell, Menu, X, FileText,
+  Home, Search, Heart, Calendar, Bell, Menu, X, FileText, LogIn, UserPlus,
 } from "lucide-react";
 
-const navItems = [
+const authNavItems = [
   { href: "/", icon: Home, label: "Home" },
   { href: "/discover", icon: Search, label: "Discover" },
-  { href: "/favorites", icon: Heart, label: "Favorites" },
+  { href: "/favorites", icon: Heart, label: "Favourites" },
   { href: "/bookings", icon: Calendar, label: "Bookings" },
-  { href: "/messages", icon: MessageSquare, label: "Messages" },
+  { href: "/notifications", icon: Bell, label: "Alerts" },
+];
+
+const guestNavItems = [
+  { href: "/", icon: Home, label: "Home" },
+  { href: "/discover", icon: Search, label: "Discover" },
+  { href: "/login", icon: LogIn, label: "Login" },
+  { href: "/register", icon: UserPlus, label: "Sign Up" },
 ];
 
 const legalLinks = [
@@ -42,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       try {
         const payload = JSON.parse(Buffer.from(token.split(".")[1] || "", "base64").toString());
         setUser(payload);
-      } catch { /* ignore */ }
+      } catch { setUser(null); }
     } else {
       setUser(null);
     }
@@ -53,7 +60,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       const token = document.cookie.match(/token=([^;]+)/)?.[1];
       fetch("/api/notifications/unread", { headers: { Authorization: `Bearer ${token}` } })
         .then((r) => r.json())
-        .then((data) => setUnread(data.unreadCount || 0))
+        .then((d) => setUnread(d.unreadCount || 0))
         .catch(() => {});
     }
   }, [user?.id, pathname]);
@@ -72,9 +79,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
 
+  // Bottom nav: logged-in users see 5 items, guests see 4
+  const bottomNavItems = user ? authNavItems : guestNavItems;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Top Navbar */}
+      {/* ── Top Navbar ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -82,17 +92,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                    isActive(item.href)
-                      ? "bg-indigo-50 text-indigo-700"
-                      : "text-gray-600 hover:bg-gray-100"
-                  )}
-                >
+              {authNavItems.slice(0, 4).map((item) => (
+                <Link key={item.href} href={item.href}
+                  className={cn("px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    isActive(item.href) ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-100"
+                  )}>
                   {item.label}
                 </Link>
               ))}
@@ -110,129 +114,108 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     )}
                   </Link>
                   <Link href={`/${user.role === "ADMIN" ? "admin" : user.role === "COMPANION" ? "companion" : "customer"}/dashboard`}>
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm cursor-pointer">
                       {user.displayName?.[0]?.toUpperCase() || "U"}
                     </div>
                   </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900"
-                  >
+                  <button onClick={handleLogout} className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900 cursor-pointer">
                     Logout
-                  </button>
-                  <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 text-gray-600">
-                    {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                   </button>
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900">Login</Link>
-                  <Link href="/register" className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+                  <Link href="/login" className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900">Login</Link>
+                  <Link href="/register" className="hidden sm:block px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
                     Sign Up
                   </Link>
-                  {/* Hamburger for guests on mobile too */}
-                  <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 text-gray-600">
-                    {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                  </button>
                 </>
               )}
+              {/* Hamburger — always visible on mobile */}
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 text-gray-600 cursor-pointer">
+                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Mobile sidebar drawer */}
+      {/* ── Mobile Sidebar Drawer ───────────────────────────────── */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 md:hidden" onClick={() => setSidebarOpen(false)}>
           <div className="absolute inset-0 bg-black/50" />
           <div className="absolute left-0 top-0 bottom-0 w-72 bg-white overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b">
               <Logo size="sm" />
-              <button onClick={() => setSidebarOpen(false)}><X className="w-5 h-5" /></button>
+              <button onClick={() => setSidebarOpen(false)} className="cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
-
             <div className="p-4 flex flex-col gap-1">
-              {/* Main nav */}
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
-                    isActive(item.href) ? "bg-indigo-50 text-indigo-700" : "text-gray-600"
-                  )}
-                >
+              {authNavItems.slice(0, 4).map((item) => (
+                <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}
+                  className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                    isActive(item.href) ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-50"
+                  )}>
                   <item.icon className="w-4 h-4" />{item.label}
                 </Link>
               ))}
-
               <hr className="my-3" />
-
-              {/* Legal links */}
               <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Legal & Support</p>
               {legalLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                >
+                <Link key={link.href} href={link.href} onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50">
                   <FileText className="w-4 h-4 shrink-0" />{link.label}
                 </Link>
               ))}
-
-              {user && (
-                <>
-                  <hr className="my-3" />
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full text-left"
-                  >
-                    Logout
-                  </button>
-                </>
+              <hr className="my-3" />
+              {user ? (
+                <button onClick={handleLogout}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 w-full text-left cursor-pointer">
+                  Logout
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2 px-1">
+                  <Link href="/login" onClick={() => setSidebarOpen(false)}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <LogIn className="w-4 h-4" /> Login
+                  </Link>
+                  <Link href="/register" onClick={() => setSidebarOpen(false)}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
+                    <UserPlus className="w-4 h-4" /> Sign Up
+                  </Link>
+                </div>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Main content */}
+      {/* ── Main Content ────────────────────────────────────────── */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-6">
         {children}
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
-      {user && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t flex items-center justify-around h-16 px-2">
-          {navItems.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 flex-1 py-2">
-                <item.icon className={cn("w-5 h-5 transition-colors", active ? "text-indigo-600" : "text-gray-400")} />
-                <span className={cn("text-xs transition-colors", active ? "text-indigo-600 font-medium" : "text-gray-400")}>
-                  {item.label}
+      {/* ── Mobile Bottom Navigation — ALWAYS VISIBLE on mobile ── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t flex items-center justify-around h-16 px-1">
+        {bottomNavItems.map((item) => {
+          const active = isActive(item.href);
+          const isNotif = item.href === "/notifications";
+          return (
+            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 flex-1 py-2 relative">
+              <item.icon className={cn("w-5 h-5 transition-colors", active ? "text-indigo-600" : "text-gray-400")} />
+              {isNotif && unread > 0 && (
+                <span className="absolute top-1 right-2 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center leading-none">
+                  {unread > 9 ? "9+" : unread}
                 </span>
-              </Link>
-            );
-          })}
-          <Link href="/notifications" className="flex flex-col items-center gap-0.5 flex-1 py-2 relative">
-            <Bell className={cn("w-5 h-5 transition-colors", isActive("/notifications") ? "text-indigo-600" : "text-gray-400")} />
-            {unread > 0 && (
-              <span className="absolute top-1.5 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center leading-none">
-                {unread > 9 ? "9+" : unread}
+              )}
+              <span className={cn("text-xs transition-colors", active ? "text-indigo-600 font-medium" : "text-gray-400")}>
+                {item.label}
               </span>
-            )}
-            <span className={cn("text-xs", isActive("/notifications") ? "text-indigo-600 font-medium" : "text-gray-400")}>
-              Alerts
-            </span>
-          </Link>
-        </nav>
-      )}
+            </Link>
+          );
+        })}
+      </nav>
 
-      {/* Footer — shown on all screen sizes */}
-      <footer className="border-t bg-white mt-12">
+      {/* ── Footer ──────────────────────────────────────────────── */}
+      <footer className="border-t bg-white mt-12 mb-16 md:mb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="col-span-2 sm:col-span-2 lg:col-span-1">
