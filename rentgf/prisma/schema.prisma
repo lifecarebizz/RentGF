@@ -3,426 +3,426 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  passwordHash     String?
-  displayName      String
-  fullName         String
-  phone            String?
-  dateOfBirth      DateTime?
-  country          String?
-  city             String?
-  role             String    @default("CUSTOMER")
-  status           String    @default("ACTIVE")
-  avatarUrl        String?
-  emailVerified    Boolean   @default(false)
-  accessGranted    Boolean   @default(false)
-  isOnline         Boolean   @default(false)
-  lastLoginAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+// ─── Users / Profiles ────────────────────────────────────────────────────────
 
-  customerProfile          CustomerProfile?
-  companionProfile         CompanionProfile?
-  favorites                Favorite[]
-  bookingsAsCustomer       Booking[]         @relation("CustomerBooking")
-  bookingsAsCompanion      Booking[]         @relation("CompanionBooking")
-  reviewsGiven             Review[]          @relation("Reviewer")
-  reviewsReceived          Review[]          @relation("Reviewee")
-  notifications            Notification[]
-  conversationParticipants ConversationParticipant[]
-  messagesSent             Message[]
-  reportsSent              Report[]          @relation("ReportReporter")
-  reportsReceived          Report[]          @relation("ReportReported")
-  blocksSent               Block[]           @relation("Blocker")
-  blocksReceived           Block[]           @relation("Blocked")
-  auditLogs                AuditLog[]        @relation("AdminAudit")
-  tempTokens               TempToken[]
-  payments                 Payment[]
-  accessEntitlements       AccessEntitlement[]
+model Profile {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  herculesUserId    String?   @map("hercules_user_id")
+  role              String    @default("CUSTOMER")
+  fullName          String    @map("full_name")
+  displayName       String    @map("display_name")
+  email             String    @unique
+  passwordHash      String?   @map("password_hash")
+  phone             String?
+  profilePhotoUrl   String?   @map("profile_photo_url")
+  dateOfBirth       DateTime? @map("date_of_birth") @db.Date
+  ageConfirmed      Boolean   @default(false) @map("age_confirmed")
+  country           String?
+  cityId            String?   @map("city_id") @db.Uuid
+  bio               String?
+  languages         String[]  @default([])
+  accountStatus     String    @default("ACTIVE") @map("account_status")
+  isAdmin           Boolean   @default(false) @map("is_admin")
+  onboardingComplete Boolean  @default(false) @map("onboarding_complete")
+  emailVerified     Boolean   @default(false) @map("email_verified")
+  accessGranted     Boolean   @default(false) @map("access_granted")
+  lastLoginAt       DateTime? @map("last_login_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  @@map("users")
-}
+  companionProfile  CompanionProfile?
+  favorites         Favorite[]          @relation("CustomerFavorites")
+  bookingsAsCustomer Booking[]          @relation("CustomerBookings")
+  notifications     Notification[]
+  conversationsAsCustomer Conversation[] @relation("CustomerConversations")
+  conversationsAsCompanion Conversation[] @relation("CompanionConversations")
+  messagesSent      Message[]
+  reviewsGiven      Review[]            @relation("ReviewerProfile")
+  reportsSent       Report[]            @relation("ReporterProfile")
+  reportsReceived   Report[]            @relation("ReportedProfile")
+  blocksSent        Block[]             @relation("BlockerProfile")
+  blocksReceived    Block[]             @relation("BlockedProfile")
+  auditLogs         AuditLog[]
+  tempTokens        TempToken[]
+  accessPayments    AccessPayment[]
+  city              City?               @relation(fields: [cityId], references: [id])
 
-model CustomerProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  languages String[] @default([])
-  interests String[] @default([])
-  bio       String?  @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("customer_profiles")
+  @@map("profiles")
 }
 
 model CompanionProfile {
-  id                 String                @id @default(cuid())
-  userId             String                @unique
-  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId          String    @unique @map("profile_id") @db.Uuid
+  profile            Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  verificationStatus String    @default("NOT_SUBMITTED") @map("verification_status")
+  isVisible          Boolean   @default(false) @map("is_visible")
+  isDiscoverable     Boolean   @default(false) @map("is_discoverable")
+  startingPrice      Decimal?  @map("starting_price")
+  currency           String    @default("INR")
+  bio                String?
+  languages          String[]  @default([])
+  categories         String[]  @default([])
+  interests          String[]  @default([])
   city               String?
-  languages          String[]              @default([])
-  interests          String[]              @default([])
-  categories         String[]              @default([])
-  bio                String?               @db.Text
-  startingPrice      Float?
-  availabilityDays   String[]              @default([])
-  availabilityTimes  String[]              @default([])
-  onboardingStep     Int                   @default(0)
-  onboardingComplete Boolean               @default(false)
-  isDiscoverable     Boolean               @default(false)
-  isPublic           Boolean               @default(false)
-  verificationStatus String                @default("NOT_SUBMITTED")
-  totalEarnings      Float                 @default(0)
-  completedBookings  Int                   @default(0)
-  averageRating      Float?
-  reviewCount        Int                   @default(0)
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
+  availabilityDays   String[]  @default([]) @map("availability_days")
+  availabilityTimes  String[]  @default([]) @map("availability_times")
+  onboardingStep     Int       @default(0) @map("onboarding_step")
+  onboardingComplete Boolean   @default(false) @map("onboarding_complete")
+  avgRating          Decimal?  @map("avg_rating")
+  totalReviews       Int       @default(0) @map("total_reviews")
+  totalBookings      Int       @default(0) @map("total_bookings")
+  totalEarnings      Decimal   @default(0) @map("total_earnings")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  bookings   Booking[]             @relation("CompanionBookingProfile")
-  earnings   Earnings[]
-  payouts    Payout[]
-  favorites  Favorite[]
-  documents  VerificationDocument[]
+  bookings           Booking[]           @relation("CompanionBookings")
+  favorites          Favorite[]          @relation("CompanionFavorites")
+  reviews            Review[]            @relation("CompanionReviews")
+  earnings           Earning[]
+  payouts            Payout[]
+  documents          CompanionVerification[]
+  conversationsAsCompanion Conversation[] @relation("CompanionProfileConversations")
 
   @@map("companion_profiles")
 }
 
-model VerificationDocument {
-  id           String           @id @default(cuid())
-  companionId  String
+model CompanionVerification {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companionId  String           @map("companion_id") @db.Uuid
   companion    CompanionProfile @relation(fields: [companionId], references: [id], onDelete: Cascade)
-  documentType String
-  documentUrl  String
-  isVerified   Boolean          @default(false)
-  createdAt    DateTime         @default(now())
+  documentType String           @map("document_type")
+  documentUrl  String           @map("document_url")
+  isVerified   Boolean          @default(false) @map("is_verified")
+  createdAt    DateTime         @default(now()) @map("created_at")
 
-  @@map("verification_documents")
+  @@map("companion_verification")
 }
 
+// ─── Lookup Tables ────────────────────────────────────────────────────────────
+
 model City {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  country   String
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  state      String?
+  country    String?
+  isActive   Boolean   @default(true) @map("is_active")
+  isFeatured Boolean   @default(false) @map("is_featured")
+  sortOrder  Int       @default(0) @map("sort_order")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime? @updatedAt @map("updated_at")
+
+  profiles   Profile[]
 
   @@map("cities")
 }
 
 model Category {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  icon        String?
+  isActive    Boolean   @default(true) @map("is_active")
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
 
   @@map("categories")
 }
 
 model Interest {
-  id        String   @id @default(cuid())
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name      String
-  slug      String   @unique
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  icon      String?
+  isActive  Boolean   @default(true) @map("is_active")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("interests")
 }
 
-model Favorite {
-  id          String           @id @default(cuid())
-  customerId  String
-  companionId String
-  createdAt   DateTime         @default(now())
-
-  customer  User             @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  companion CompanionProfile @relation(fields: [companionId], references: [id], onDelete: Cascade)
-
-  @@unique([customerId, companionId])
-  @@map("favorites")
-}
+// ─── Booking & Payments ───────────────────────────────────────────────────────
 
 model Booking {
-  id                 String    @id @default(cuid())
-  customerId         String
-  companionId        String
-  status             String    @default("PENDING")
-  bookingDate        DateTime
-  startTime          DateTime
-  endTime            DateTime
-  durationMinutes    Int
-  activityType       String?
-  message            String?   @db.Text
-  price              Float
-  discountAmount     Float     @default(0)
-  finalPrice         Float
-  currency           String    @default("INR")
-  cancelledBy        String?
-  cancellationReason String?   @db.Text
-  cancelledAt        DateTime?
-  completedAt        DateTime?
-  paymentId          String?
-  paymentStatus      String?   @default("PENDING")
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerProfileId   String    @map("customer_profile_id") @db.Uuid
+  companionProfileId  String    @map("companion_profile_id") @db.Uuid
+  categoryId          String?   @map("category_id") @db.Uuid
+  scheduledDate       DateTime  @map("scheduled_date") @db.Date
+  scheduledTime       DateTime  @map("scheduled_time") @db.Time()
+  durationHours       Decimal   @map("duration_hours")
+  locationDescription String?   @map("location_description")
+  totalAmount         Decimal   @map("total_amount")
+  currency            String    @default("INR")
+  status              String    @default("PENDING")
+  customerNotes       String?   @map("customer_notes")
+  companionNotes      String?   @map("companion_notes")
+  activityType        String?   @map("activity_type")
+  message             String?
+  price               Decimal?
+  discountAmount      Decimal   @default(0) @map("discount_amount")
+  finalPrice          Decimal?  @map("final_price")
+  paymentStatus       String    @default("PENDING") @map("payment_status")
+  cancelledBy         String?   @map("cancelled_by")
+  cancellationReason  String?   @map("cancellation_reason")
+  cancelledAt         DateTime? @map("cancelled_at")
+  completedAt         DateTime? @map("completed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  customer      User              @relation("CustomerBooking", fields: [customerId], references: [id])
-  companion     User              @relation("CompanionBooking", fields: [companionId], references: [id])
-  reviews       Review[]
+  customer    Profile          @relation("CustomerBookings", fields: [customerProfileId], references: [id])
+  companion   CompanionProfile @relation("CompanionBookings", fields: [companionProfileId], references: [id])
+  reviews     Review[]
+  payments    BookingPayment[]
+  earnings    Earning[]
   notifications Notification[]
-  earnings      Earnings[]
-  payments      Payment[]
 
   @@map("bookings")
 }
 
-model Payment {
-  id             String    @id @default(cuid())
-  orderId        String    @unique
-  paymentId      String?   @unique
-  userId         String
-  bookingId      String?
-  amount         Float
-  discountAmount Float     @default(0)
-  finalAmount    Float
-  currency       String    @default("INR")
-  status         String    @default("PENDING")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+model BookingPayment {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId         String    @map("booking_id") @db.Uuid
+  customerProfileId String    @map("customer_profile_id") @db.Uuid
+  amount            Decimal
+  currency          String    @default("INR")
+  platformFee       Decimal   @map("platform_fee")
+  companionAmount   Decimal   @map("companion_amount")
+  paymentProvider   String    @map("payment_provider")
+  paymentId         String?   @map("payment_id")
+  status            String    @default("PENDING")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
-  user              User                @relation(fields: [userId], references: [id])
-  booking           Booking?            @relation(fields: [bookingId], references: [id])
-  accessEntitlement AccessEntitlement?
+  booking  Booking  @relation(fields: [bookingId], references: [id])
+  earnings Earning[]
 
-  @@map("payments")
+  @@map("booking_payments")
 }
 
-model AccessEntitlement {
-  id        String   @id @default(cuid())
-  userId    String
-  paymentId String   @unique
-  grantedAt DateTime @default(now())
-  isActive  Boolean  @default(true)
+model AccessPayment {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerProfileId String    @map("customer_profile_id") @db.Uuid
+  amount            Decimal
+  currency          String    @default("INR")
+  discountId        String?   @map("discount_id") @db.Uuid
+  discountAmount    Decimal   @default(0) @map("discount_amount")
+  finalAmount       Decimal   @map("final_amount")
+  paymentProvider   String    @map("payment_provider")
+  paymentId         String?   @unique @map("payment_id")
+  status            String    @default("PENDING")
+  accessExpiresAt   DateTime? @map("access_expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payment Payment @relation(fields: [paymentId], references: [id])
+  customer Profile @relation(fields: [customerProfileId], references: [id])
 
-  @@map("access_entitlements")
+  @@map("access_payments")
 }
 
 model Discount {
-  id             String   @id @default(cuid())
-  code           String   @unique
-  type           String
-  value          Float
-  startDate      DateTime
-  endDate        DateTime
-  isActive       Boolean  @default(true)
-  marketingLabel String?
-  usedCount      Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  type      String
+  value     Decimal
+  isActive  Boolean  @default(true) @map("is_active")
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  label     String?
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("discounts")
 }
 
-model PlatformSetting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     Json
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
+// ─── Earnings & Payouts ───────────────────────────────────────────────────────
 
-  @@map("platform_settings")
-}
+model Earning {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companionProfileId String           @map("companion_profile_id") @db.Uuid
+  bookingPaymentId   String?          @map("booking_payment_id") @db.Uuid
+  bookingId          String?          @map("booking_id") @db.Uuid
+  amount             Decimal
+  currency           String           @default("INR")
+  status             String           @default("PENDING")
+  createdAt          DateTime         @default(now()) @map("created_at")
 
-model Earnings {
-  id                 String           @id @default(cuid())
-  companionId        String
-  companion          CompanionProfile @relation(fields: [companionId], references: [id], onDelete: Cascade)
-  bookingId          String           @unique
-  booking            Booking          @relation(fields: [bookingId], references: [id])
-  bookingAmount      Float
-  platformCommission Float
-  companionEarnings  Float
-  payoutStatus       String           @default("PENDING")
-  createdAt          DateTime         @default(now())
+  companion      CompanionProfile @relation(fields: [companionProfileId], references: [id])
+  bookingPayment BookingPayment?  @relation(fields: [bookingPaymentId], references: [id])
+  booking        Booking?         @relation(fields: [bookingId], references: [id])
 
   @@map("earnings")
 }
 
 model Payout {
-  id              String           @id @default(cuid())
-  companionId     String
-  companion       CompanionProfile @relation(fields: [companionId], references: [id], onDelete: Cascade)
-  amount          Float
-  payoutStatus    String           @default("PENDING")
-  payoutReference String?
-  requestedDate   DateTime
-  processedDate   DateTime?
-  adminNotes      String?          @db.Text
-  createdAt       DateTime         @default(now())
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companionProfileId String           @map("companion_profile_id") @db.Uuid
+  companion          CompanionProfile @relation(fields: [companionProfileId], references: [id])
+  amount             Decimal
+  currency           String           @default("INR")
+  bankAccountDetails Json?            @map("bank_account_details")
+  status             String           @default("PENDING")
+  adminNotes         String?          @map("admin_notes")
+  processedBy        String?          @map("processed_by") @db.Uuid
+  processedAt        DateTime?        @map("processed_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
 
   @@map("payouts")
 }
 
+// ─── Social ───────────────────────────────────────────────────────────────────
+
+model Favorite {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerProfileId String           @map("customer_profile_id") @db.Uuid
+  companionProfileId String          @map("companion_profile_id") @db.Uuid
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  customer  Profile          @relation("CustomerFavorites", fields: [customerProfileId], references: [id], onDelete: Cascade)
+  companion CompanionProfile @relation("CompanionFavorites", fields: [companionProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([customerProfileId, companionProfileId])
+  @@map("favorites")
+}
+
 model Conversation {
-  id           String                    @id @default(cuid())
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
-  participants ConversationParticipant[]
-  messages     Message[]
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerProfileId   String    @map("customer_profile_id") @db.Uuid
+  companionProfileId  String    @map("companion_profile_id") @db.Uuid
+  lastMessageAt       DateTime? @map("last_message_at")
+  isActive            Boolean   @default(true) @map("is_active")
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  customer  Profile          @relation("CustomerConversations", fields: [customerProfileId], references: [id])
+  companion Profile          @relation("CompanionConversations", fields: [companionProfileId], references: [id])
+  companionProfile CompanionProfile @relation("CompanionProfileConversations", fields: [companionProfileId], references: [id])
+  messages  Message[]
 
   @@map("conversations")
 }
 
-model ConversationParticipant {
-  id             String       @id @default(cuid())
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  userId         String
-  joinedAt       DateTime     @default(now())
-  lastReadAt     DateTime?
-  isBlocked      Boolean      @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([conversationId, userId])
-  @@map("conversation_participants")
-}
-
 model Message {
-  id             String       @id @default(cuid())
-  conversationId String
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderId       String
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  content        String       @db.Text
-  isRead         Boolean      @default(false)
-  createdAt      DateTime     @default(now())
+  senderId       String       @map("sender_id") @db.Uuid
+  sender         Profile      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String
+  isRead         Boolean      @default(false) @map("is_read")
+  createdAt      DateTime     @default(now()) @map("created_at")
 
   @@map("messages")
 }
 
 model Review {
-  id         String   @id @default(cuid())
-  bookingId  String   @unique
-  booking    Booking  @relation(fields: [bookingId], references: [id])
-  reviewerId String
-  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id])
-  revieweeId String
-  reviewee   User     @relation("Reviewee", fields: [revieweeId], references: [id])
-  rating     Int
-  comment    String?  @db.Text
-  isVerified Boolean  @default(false)
-  status     String   @default("PENDING")
-  createdAt  DateTime @default(now())
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId          String?          @map("booking_id") @db.Uuid
+  customerProfileId  String           @map("customer_profile_id") @db.Uuid
+  companionProfileId String           @map("companion_profile_id") @db.Uuid
+  rating             Int
+  comment            String?
+  isVisible          Boolean          @default(true) @map("is_visible")
+  isVerified         Boolean          @default(false) @map("is_verified")
+  status             String           @default("PENDING")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  booking   Booking?         @relation(fields: [bookingId], references: [id])
+  customer  Profile          @relation("ReviewerProfile", fields: [customerProfileId], references: [id])
+  companion CompanionProfile @relation("CompanionReviews", fields: [companionProfileId], references: [id])
 
   @@map("reviews")
 }
 
+model Notification {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId   String   @map("profile_id") @db.Uuid
+  type        String
+  title       String
+  body        String
+  data        Json?
+  isRead      Boolean  @default(false) @map("is_read")
+  relatedId   String?  @map("related_id")
+  relatedType String?  @map("related_type")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  profile  Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  booking  Booking? @relation(fields: [relatedId], references: [id])
+
+  @@map("notifications")
+}
+
+// ─── Moderation ───────────────────────────────────────────────────────────────
+
 model Report {
-  id             String    @id @default(cuid())
-  reporterId     String
-  reporter       User      @relation("ReportReporter", fields: [reporterId], references: [id])
-  reportedUserId String
-  reportedUser   User      @relation("ReportReported", fields: [reportedUserId], references: [id])
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId     String    @map("reporter_id") @db.Uuid
+  reportedUserId String    @map("reported_user_id") @db.Uuid
   category       String
-  description    String?   @db.Text
+  description    String?
   status         String    @default("OPEN")
-  adminNotes     String?   @db.Text
-  resolvedAt     DateTime?
-  createdAt      DateTime  @default(now())
+  adminNotes     String?   @map("admin_notes")
+  resolvedAt     DateTime? @map("resolved_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  reporter     Profile @relation("ReporterProfile", fields: [reporterId], references: [id])
+  reportedUser Profile @relation("ReportedProfile", fields: [reportedUserId], references: [id])
 
   @@map("reports")
 }
 
 model Block {
-  id        String   @id @default(cuid())
-  blockerId String
-  blocker   User     @relation("Blocker", fields: [blockerId], references: [id])
-  blockedId String
-  blocked   User     @relation("Blocked", fields: [blockedId], references: [id])
-  reason    String?  @db.Text
-  createdAt DateTime @default(now())
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker Profile @relation("BlockerProfile", fields: [blockerId], references: [id])
+  blocked Profile @relation("BlockedProfile", fields: [blockedId], references: [id])
 
   @@unique([blockerId, blockedId])
   @@map("blocks")
 }
 
-model Notification {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String
-  title       String
-  message     String   @db.Text
-  isRead      Boolean  @default(false)
-  relatedId   String?
-  relatedType String?
-  createdAt   DateTime @default(now())
+// ─── Platform ─────────────────────────────────────────────────────────────────
 
-  booking Booking? @relation(fields: [relatedId], references: [id])
+model PlatformSetting {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String    @unique
+  value       String
+  description String?
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  @@map("notifications")
-}
-
-model FAQ {
-  id        String   @id @default(cuid())
-  question  String   @db.Text
-  answer    String   @db.Text
-  category  String?
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-
-  @@map("faqs")
-}
-
-model ContentPage {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  title     String
-  content   String   @db.Text
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  @@map("content_pages")
+  @@map("platform_settings")
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  adminId    String
-  admin      User     @relation("AdminAudit", fields: [adminId], references: [id])
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adminId    String    @map("admin_id") @db.Uuid
+  admin      Profile   @relation(fields: [adminId], references: [id])
   action     String
-  targetType String
-  targetId   String?
+  targetType String    @map("target_type")
+  targetId   String?   @map("target_id") @db.Uuid
   metadata   Json?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   @@map("audit_logs")
 }
 
 model TempToken {
-  id        String   @id @default(cuid())
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String   @map("profile_id") @db.Uuid
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   type      String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("temp_tokens")
 }
