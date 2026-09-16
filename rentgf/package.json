@@ -5,10 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "build:cf": "prisma generate && next build && npx @cloudflare/next-on-pages",
     "start": "next start",
     "lint": "eslint",
-    "pages:dev": "npx @cloudflare/next-on-pages@1 --watch",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "npx tsx prisma/seed.ts"
@@ -16,7 +14,6 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
     "@aws-sdk/s3-request-presigner": "^3.0.0",
-    "@cloudflare/next-on-pages": "^1.13.12",
     "@prisma/client": "^5.22.0",
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.3",
