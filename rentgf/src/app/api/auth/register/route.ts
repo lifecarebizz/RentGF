@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma-client";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-
+import { sendVerificationEmail } from "@/lib/services/email-service";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { fullName, displayName, email, phone, dateOfBirth, country, city, password, confirmPassword } = body;
+
+    if (!fullName || !displayName || !email || !password) {
+      return NextResponse.json({ error: "Required fields missing" }, { status: 400 });
+    }
 
     if (password !== confirmPassword) {
       return NextResponse.json({ error: "Passwords do not match" }, { status: 400 });
@@ -34,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const token = crypto.randomBytes(32).toString("hex");
+    const verifyToken = crypto.randomBytes(32).toString("hex");
 
     const user = await prisma.user.create({
       data: {
@@ -47,21 +51,24 @@ export async function POST(req: NextRequest) {
         country: country || null,
         city: city || null,
         role: "CUSTOMER",
-        emailVerifyToken: token,
-        emailVerifyTokenExpiry: new Date(Date.now() + 86400000),
       },
     });
 
-    await prisma.customerProfile.create({
-      data: { userId: user.id },
-    });
+    await prisma.customerProfile.create({ data: { userId: user.id } });
 
     await prisma.tempToken.create({
-      data: { token, userId: user.id, type: "EMAIL_VERIFY", expiresAt: new Date(Date.now() + 86400000) },
+      data: { token: verifyToken, userId: user.id, type: "EMAIL_VERIFY", expiresAt: new Date(Date.now() + 86400000) },
     });
 
+    try {
+      await sendVerificationEmail(email, verifyToken, displayName);
+    } catch (emailError) {
+      console.error("Email send failed:", emailError);
+    }
+
     return NextResponse.json({ user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role } }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Registration failed" }, { status: 500 });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Registration failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
