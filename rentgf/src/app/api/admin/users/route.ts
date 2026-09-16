@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma-client";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "rentgf-secret-key-change-in-production-min-32-chars";
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || "rentgf-secret-change-me";
 
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const token = authHeader.substring(7);
-    const payload = jwt.verify(token, JWT_SECRET) as any;
-
+    const payload = jwt.verify(authHeader.substring(7), JWT_SECRET) as { id: string; role: string };
     if (payload.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
@@ -19,11 +17,11 @@ export async function GET(req: NextRequest) {
     const role = searchParams.get("role");
     const status = searchParams.get("status");
     const search = searchParams.get("search");
-
     const skip = (page - 1) * limit;
-    const where: any = {};
+
+    const where: Record<string, unknown> = {};
     if (role) where.role = role;
-    if (status) where.status = status;
+    if (status) where.accountStatus = status;
     if (search) {
       where.OR = [
         { displayName: { contains: search, mode: "insensitive" } },
@@ -32,12 +30,23 @@ export async function GET(req: NextRequest) {
     }
 
     const [users, total] = await Promise.all([
-      prisma.user.findMany({ where, skip, take: limit, orderBy: { createdAt: "desc" } }),
-      prisma.user.count({ where }),
+      prisma.profile.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true, email: true, displayName: true, fullName: true,
+          role: true, accountStatus: true, profilePhotoUrl: true,
+          createdAt: true, lastLoginAt: true,
+        },
+      }),
+      prisma.profile.count({ where }),
     ]);
 
     return NextResponse.json({ users, total, page, totalPages: Math.ceil(total / limit) });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
