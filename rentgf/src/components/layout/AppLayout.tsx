@@ -4,18 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import Logo from "@/components/common/Logo";
 import {
-  Home,
-  Search,
-  Heart,
-  Calendar,
-  MessageSquare,
-  User,
-  Settings,
-  Bell,
-  Menu,
-  X,
-  Sparkles,
+  Home, Search, Heart, Calendar, MessageSquare, Bell, Menu, X,
 } from "lucide-react";
 
 const navItems = [
@@ -30,7 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<Record<string, string> | null>(null);
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -40,7 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       try {
         const payload = JSON.parse(Buffer.from(token.split(".")[1] || "", "base64").toString());
         setUser(payload);
-      } catch {}
+      } catch { /* ignore */ }
     } else {
       setUser(null);
     }
@@ -48,9 +39,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (user?.id) {
-      fetch(`/api/notifications/unread`, {
-        headers: { Authorization: `Bearer ${document.cookie.match(/token=([^;]+)/)?.[1]}` },
-      })
+      const token = document.cookie.match(/token=([^;]+)/)?.[1];
+      fetch("/api/notifications/unread", { headers: { Authorization: `Bearer ${token}` } })
         .then((r) => r.json())
         .then((data) => setUnread(data.unreadCount || 0))
         .catch(() => {});
@@ -63,34 +53,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     router.push("/");
   };
 
-  const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register") ||
-    pathname?.startsWith("/forgot-password") || pathname?.startsWith("/reset-password") ||
-    pathname?.startsWith("/verify-email");
+  const isAuthPage = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"]
+    .some((p) => pathname?.startsWith(p));
 
-  if (isAuthPage) {
-    return <>{children}</>;
-  }
+  if (isAuthPage) return <>{children}</>;
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
       <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">RentGF</span>
-            </Link>
+            <Logo size="md" />
 
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map((item) => (
                 <Link key={item.href} href={item.href} className={cn(
                   "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                  pathname?.startsWith(item.href) ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-100"
-                )}>
-                  {item.label}
-                </Link>
+                  pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href))
+                    ? "bg-indigo-50 text-indigo-700" : "text-gray-600 hover:bg-gray-100"
+                )}>{item.label}</Link>
               ))}
             </nav>
 
@@ -106,9 +88,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     )}
                   </Link>
                   <Link href={`/${user.role === "ADMIN" ? "admin" : user.role === "COMPANION" ? "companion" : "customer"}/dashboard`}>
-                    <img src={user.avatarUrl || "/avatar-placeholder.png"} alt="Profile" className="w-8 h-8 rounded-full" />
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+                      {user.displayName?.[0]?.toUpperCase() || "U"}
+                    </div>
                   </Link>
-                  <button onClick={handleLogout} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">
+                  <button onClick={handleLogout} className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900">
                     Logout
                   </button>
                   <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 text-gray-600">
@@ -117,9 +101,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900">
-                    Login
-                  </Link>
+                  <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900">Login</Link>
                   <Link href="/register" className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
                     Sign Up
                   </Link>
@@ -130,23 +112,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
+      {/* Mobile sidebar */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 md:hidden" onClick={() => setSidebarOpen(false)}>
           <div className="absolute inset-0 bg-black/50" />
           <div className="absolute left-0 top-0 bottom-0 w-64 bg-white p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <span className="font-bold text-lg">Menu</span>
-              <button onClick={() => setSidebarOpen(false)}>
-                <X className="w-5 h-5" />
-              </button>
+              <Logo size="sm" />
+              <button onClick={() => setSidebarOpen(false)}><X className="w-5 h-5" /></button>
             </div>
-            <nav className="flex flex-col gap-2">
+            <nav className="flex flex-col gap-1">
               {navItems.map((item) => (
-                <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)} className={cn(
-                  "px-3 py-2 rounded-lg text-sm font-medium",
-                  pathname?.startsWith(item.href) ? "bg-indigo-50 text-indigo-700" : "text-gray-600"
-                )}>
-                  {item.label}
+                <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}
+                  className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                    pathname === item.href ? "bg-indigo-50 text-indigo-700" : "text-gray-600")}>
+                  <item.icon className="w-4 h-4" />{item.label}
                 </Link>
               ))}
             </nav>
@@ -156,19 +136,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
 
+      {/* Footer */}
       <footer className="border-t bg-white mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <span className="font-bold text-lg">RentGF</span>
-              </div>
-              <p className="text-sm text-gray-500">
-                18+ companionship marketplace. Strictly non-sexual social activities.
-              </p>
+              <Logo size="md" className="mb-4" />
+              <p className="text-sm text-gray-500">18+ companionship marketplace. Strictly non-sexual social activities.</p>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Platform</h4>

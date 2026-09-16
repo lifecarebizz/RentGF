@@ -3,27 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Search, Calendar, Heart, Shield, Sparkles, ArrowRight } from "lucide-react";
-import { getCookie, setCookie } from "cookies-next";
+import { Search, Calendar, Heart, Shield, ArrowRight } from "lucide-react";
+import { setCookie } from "cookies-next";
+import Logo from "@/components/common/Logo";
 
 export default function HomePage() {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<Record<string, string> | null>(null);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email");
-    const password = formData.get("password");
-
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: formData.get("email"), password: formData.get("password") }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -33,7 +28,7 @@ export default function HomePage() {
         else if (data.user.role === "COMPANION") router.push("/companion/dashboard");
         else router.push("/customer/dashboard");
       }
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   return (
@@ -41,8 +36,10 @@ export default function HomePage() {
       {/* Hero */}
       <section className="bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700 rounded-3xl p-8 sm:p-12 text-white mb-12">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1.5 mb-6 text-sm">
-            <Sparkles className="w-4 h-4" />
+          <div className="flex justify-center mb-6">
+            <Logo size="lg" white href="" />
+          </div>
+          <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1.5 mb-4 text-sm">
             18+ Non-Sexual Companionship Marketplace
           </div>
           <h1 className="text-3xl sm:text-5xl font-bold mb-4">Find Quality Companionship</h1>
@@ -54,7 +51,7 @@ export default function HomePage() {
               Explore <ArrowRight className="w-5 h-5" />
             </Link>
           ) : (
-            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/register" className="bg-white text-indigo-700 px-8 py-3 rounded-full font-semibold hover:bg-indigo-50 transition-colors text-center">
                 Get Started
               </Link>
@@ -66,7 +63,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Login Form */}
+      {/* Quick login */}
       {!user && (
         <section className="max-w-md mx-auto mb-12">
           <div className="bg-white rounded-2xl shadow-sm border p-6">
