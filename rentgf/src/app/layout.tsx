@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "RentGF - 18+ Non-Sexual Companionship Marketplace",
+    default: "RentGF - Find Your Perfect Companion",
     template: "%s | RentGF",
   },
   description: "RentGF connects adults with verified companions for lawful, non-sexual social activities.",
