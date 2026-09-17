@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     const internalOrderId = `ORD-${crypto.randomBytes(8).toString("hex")}`;
 
-    const razorpayOrder = await razorpay.orders.create({
+    const razorpayOrder = await razorpay().orders.create({
       amount: totalPaise,
       currency: "INR",
       receipt: internalOrderId,
