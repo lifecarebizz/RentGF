@@ -3,7 +3,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  output: "standalone",
+  // Remove 'standalone' for Vercel — Vercel handles its own output format
 };
 
 export default nextConfig;
