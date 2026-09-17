@@ -1,29 +1,36 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazily initialized to avoid crashing at build time when env vars are absent
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  }
+  return _supabase;
+}
 
 export async function uploadFile(file: Buffer, mimeType: string, folder: string): Promise<string> {
   const ext = mimeType.split("/")[1] || "bin";
   const key = `${crypto.randomBytes(16).toString("hex")}.${ext}`;
 
-  const { error } = await supabase.storage
+  const { error } = await getSupabase().storage
     .from(folder)
     .upload(key, file, { contentType: mimeType, upsert: false });
 
   if (error) throw new Error(error.message);
 
-  const { data } = supabase.storage.from(folder).getPublicUrl(key);
+  const { data } = getSupabase().storage.from(folder).getPublicUrl(key);
   return data.publicUrl;
 }
 
 export async function deleteFile(url: string, folder: string): Promise<void> {
   try {
     const key = url.split(`/${folder}/`)[1];
-    if (key) await supabase.storage.from(folder).remove([key]);
+    if (key) await getSupabase().storage.from(folder).remove([key]);
   } catch {
     // Ignore delete errors
   }
@@ -36,13 +43,13 @@ export async function getPresignedUploadUrl(
   const ext = mimeType.split("/")[1] || "bin";
   const key = `${crypto.randomBytes(16).toString("hex")}.${ext}`;
 
-  const { data, error } = await supabase.storage
+  const { data, error } = await getSupabase().storage
     .from(folder)
     .createSignedUploadUrl(key);
 
   if (error || !data) throw new Error(error?.message || "Failed to create upload URL");
 
-  const { data: publicData } = supabase.storage.from(folder).getPublicUrl(key);
+  const { data: publicData } = getSupabase().storage.from(folder).getPublicUrl(key);
 
   return { uploadUrl: data.signedUrl, publicUrl: publicData.publicUrl };
 }
