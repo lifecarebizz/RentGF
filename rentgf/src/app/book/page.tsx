@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { Suspense, useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Calendar, Clock, FileText, CheckCircle, CreditCard, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
@@ -47,7 +47,7 @@ function getToken() {
   return document.cookie.split("; ").find((r) => r.startsWith("token="))?.split("=")[1] || "";
 }
 
-export default function BookingFlowPage() {
+function BookingFlowInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   // Only trust companionId from URL — rate is always fetched from server
@@ -348,5 +348,13 @@ export default function BookingFlowPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function BookingFlowPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>}>
+      <BookingFlowInner />
+    </Suspense>
   );
 }
