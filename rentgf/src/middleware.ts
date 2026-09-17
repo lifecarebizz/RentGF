@@ -5,12 +5,23 @@ export function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/api/")) return NextResponse.next();
 
-  if (pathname.startsWith("/login") || pathname.startsWith("/register") ||
-      pathname.startsWith("/forgot") || pathname.startsWith("/reset") ||
-      pathname.startsWith("/verify-email") || pathname.startsWith("/legal") ||
-      pathname.startsWith("/discover") || pathname.startsWith("/cities") ||
-      pathname.startsWith("/categories") || pathname.startsWith("/book") ||
-      pathname.startsWith("/sitemap") || pathname.startsWith("/robots")) {
+  // Public routes — no auth required
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot") ||
+    pathname.startsWith("/reset") ||
+    pathname.startsWith("/verify-email") ||
+    pathname.startsWith("/legal") ||
+    pathname.startsWith("/discover") ||
+    pathname.startsWith("/cities") ||
+    pathname.startsWith("/categories") ||
+    pathname.startsWith("/companion") ||
+    pathname.startsWith("/book") ||
+    pathname.startsWith("/sitemap") ||
+    pathname.startsWith("/robots")
+  ) {
     return NextResponse.next();
   }
 
