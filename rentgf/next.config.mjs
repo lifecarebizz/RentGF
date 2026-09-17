@@ -11,6 +11,12 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // All API routes use request.headers/url — opt them all out of static rendering
+  experimental: {
+    serverActions: {
+      allowedOrigins: [],
+    },
+  },
 };
 
 export default nextConfig;
