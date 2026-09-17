@@ -297,10 +297,10 @@ model Conversation {
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
   createdAt           DateTime  @default(now()) @map("created_at")
 
-  customer  Profile          @relation("CustomerConversations", fields: [customerProfileId], references: [id])
-  companion Profile          @relation("CompanionConversations", fields: [companionProfileId], references: [id])
-  companionProfile CompanionProfile @relation("CompanionProfileConversations", fields: [companionProfileId], references: [id])
-  messages  Message[]
+  customer         Profile          @relation("CustomerConversations", fields: [customerProfileId], references: [id], map: "conversations_customer_profile_id_fkey")
+  companion        Profile          @relation("CompanionConversations", fields: [companionProfileId], references: [id], map: "conversations_companion_profile_fkey")
+  companionProfile CompanionProfile @relation("CompanionProfileConversations", fields: [companionProfileId], references: [id], map: "conversations_companion_cp_fkey")
+  messages         Message[]
 
   @@map("conversations")
 }
